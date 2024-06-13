@@ -100,5 +100,7 @@ def root():
 
 @app.post('/add-historisk-person')
 def add_person_route(navn, nationalitet):
+    if navn.lower() == 'dave':
+        return "I'm sorry, Dave. I'm afraid I can't do that."
     add_person(navn, nationalitet)
     return hent_data()
