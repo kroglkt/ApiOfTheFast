@@ -1,0 +1,78 @@
+version: v2beta1
+name: python-demo
+
+vars:
+  IDE_IMAGE: "mcr.microsoft.com/devcontainers/python:1-3.11-bullseye"
+  PROJECT: "python-demo"
+
+# This is a list of `deployments` that DevSpace can create for this project
+deployments:
+  python-demo:
+    # This deployment uses `helm` but you can also define `kubectl` deployments or kustomizations
+    helm:
+      chart:
+        name: component-chart
+        repo: https://charts.devspace.sh
+      values:
+        containers:
+        - image: ${IDE_IMAGE}
+          name: ${PROJECT}
+          command: ["/bin/sh", "-ec", "while :; do echo '.'; sleep 5 ; done"]
+          resources:
+            requests:
+              cpu: 1
+              memory: 3Gi
+            limits:
+              cpu: 2
+              memory: 6Gi
+
+# This is a list of `dev` containers that are based on the containers created by your deployments
+dev:
+  python-demo:
+    # Search for the container that runs this image
+    imageSelector: ${IDE_IMAGE}
+    workingDir: /workspaces/${PROJECT}
+    sync:
+      - path: .:/workspaces/${PROJECT}
+        initialSync: preferLocal
+        waitInitialSync: true
+        excludePaths:
+        - '**/__pycache__/'
+        # onUpload:
+        #   exec:
+        #   - command: |-
+        #       pip3 install -r requirements.txt
+        #     onChange: ["requirements.txt"]
+    persistPaths:
+    - path: /root/.vscode-server
+      initContainer:
+        resources:
+          requests:
+            cpu: 0.1
+            memory: 100Mi
+          limits:
+            cpu: 0.1
+            memory: 100Mi
+    - path: /usr/local/lib/python3.11/site-packages
+      initContainer:
+        resources:
+          requests:
+            cpu: 0.1
+            memory: 100Mi
+          limits:
+            cpu: 0.1
+            memory: 100Mi
+    persistenceOptions:
+      size: 4Gi
+      name: ${PROJECT}-pvc
+    # Inject a lightweight SSH server into the container (so your IDE can connect to the remote dev env)
+    ssh:
+      localHostname: ${PROJECT}.devspace
+
+pipelines:
+  dev: |-
+    # Deploy the application and then start dev
+    run_default_pipeline dev
+
+    # Open VSCode as soon as we are done
+    code --folder-uri vscode-remote://ssh-remote+${PROJECT}.devspace/workspaces/${PROJECT}
